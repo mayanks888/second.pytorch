@@ -4,7 +4,7 @@ import time
 from collections import defaultdict
 from functools import partial
 
-import cv2
+# import cv2
 import numpy as np
 from skimage import io as imgio
 
@@ -14,7 +14,7 @@ from second.core.geometry import points_in_convex_polygon_3d_jit
 from second.data import kitti_common as kitti
 from second.utils import simplevis
 from second.utils.timer import simple_timer
-
+from second.pytorch.mayank_play.lidar_point_ops_on_mayavi import draw_lidar_simple,boxes_in_3d
 import seaborn as sns
 import matplotlib.pyplot as plt 
 
@@ -191,6 +191,7 @@ def prep_pointcloud(input_dict,
         selected = kitti.drop_arrays_by_name(gt_dict["gt_names"], ["DontCare"])
         _dict_select(gt_dict, selected)
         if remove_unknown:
+            #not used
             remove_mask = gt_dict["difficulty"] == -1
             """
             gt_boxes_remove = gt_boxes[remove_mask]
@@ -205,21 +206,14 @@ def prep_pointcloud(input_dict,
             point_counts = box_np_ops.points_count_rbbox(points, gt_dict["gt_boxes"])
             mask = point_counts >= min_points_in_gt
             _dict_select(gt_dict, mask)
-        gt_boxes_mask = np.array(
-            [n in class_names for n in gt_dict["gt_names"]], dtype=np.bool_)
+        #didn't understood this
+        gt_boxes_mask = np.array([n in class_names for n in gt_dict["gt_names"]], dtype=np.bool_)
         if db_sampler is not None:
             group_ids = None
             if "group_ids" in gt_dict:
                 group_ids = gt_dict["group_ids"]
 
-            sampled_dict = db_sampler.sample_all(
-                root_path,
-                gt_dict["gt_boxes"],
-                gt_dict["gt_names"],
-                num_point_features,
-                random_crop,
-                gt_group_ids=group_ids,
-                calib=calib)
+            sampled_dict = db_sampler.sample_all(root_path, gt_dict["gt_boxes"], gt_dict["gt_names"], num_point_features, random_crop, gt_group_ids=group_ids, calib=calib)
 
             if sampled_dict is not None:
                 sampled_gt_names = sampled_dict["gt_names"]
@@ -247,6 +241,18 @@ def prep_pointcloud(input_dict,
                     points = points[np.logical_not(masks.any(-1))]
 
                 points = np.concatenate([sampled_points, points], axis=0)
+                ##############################################################333
+                # done by mayank
+                # modified by mayank
+                # i have created this just to check the anchor on point cloud
+
+                # filename ='/home/mayank_sati/Documents/point_clouds/nuscene_v1.0-mini/samples/LIDAR_TOP/n008-2018-08-01-15-16-36-0400__LIDAR_TOP__1533151622448916.pcd.bin'
+                # points = np.fromfile(filename, dtype=np.float32)
+                # points = points.reshape((-1, 5))[:, :4]
+                # fig = draw_lidar_simple(points)
+                # boxes_in_3d(ret['anchors'],fig)
+                ################################################################
+
         pc_range = voxel_generator.point_cloud_range
         group_ids = None
         if "group_ids" in gt_dict:
@@ -300,15 +306,13 @@ def prep_pointcloud(input_dict,
     # [352, 400]
     t1 = time.time()
     if not multi_gpu:
-        res = voxel_generator.generate(
-            points, max_voxels)
+        res = voxel_generator.generate(points, max_voxels)
         voxels = res["voxels"]
         coordinates = res["coordinates"]
         num_points = res["num_points_per_voxel"]
         num_voxels = np.array([voxels.shape[0]], dtype=np.int64)
     else:
-        res = voxel_generator.generate_multi_gpu(
-            points, max_voxels)
+        res = voxel_generator.generate_multi_gpu(points, max_voxels)
         voxels = res["voxels"]
         coordinates = res["coordinates"]
         num_points = res["num_points_per_voxel"]

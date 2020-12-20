@@ -1568,6 +1568,14 @@ class KittiViewer(QMainWindow):
             "tractor": 0.7,
             "trailer": 0.7,
         }
+        # label_thresh_map = {
+        #     "Car": 0.9,
+        #     "Pedestrian": 0.9,
+        #     "Cyclist": 0.9,
+        #     "car": 0.9,
+        #     "tractor": 0.9,
+        #     "trailer": 0.9,
+        # }
         tp_thresh = np.array([label_thresh_map[n] for n in labels])
         if len(gt_boxes) != 0 and len(dt_boxes) != 0:
             iou_max_dt_for_gt = iou.max(1)

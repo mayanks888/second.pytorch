@@ -22,10 +22,7 @@ def create_groundtruth_database(dataset_class_name,
                                 lidar_only=False,
                                 bev_only=False,
                                 coors_range=None):
-    dataset = get_dataset_class(dataset_class_name)(
-        info_path=info_path,
-        root_path=data_path,
-    )
+    dataset = get_dataset_class(dataset_class_name)(info_path=info_path, root_path=data_path,)
     root_path = Path(data_path)
     if database_save_path is None:
         database_save_path = root_path / 'gt_database'

@@ -181,9 +181,7 @@ class TargetAssigner:
         else:
             feature_map_sizes = [feature_map_size] * len(self._anchor_generators)
         idx = 0
-        for anchor_generator, match_thresh, unmatch_thresh, fsize in zip(
-                self._anchor_generators, matched_thresholds,
-                unmatched_thresholds, feature_map_sizes):
+        for anchor_generator, match_thresh, unmatch_thresh, fsize in zip(self._anchor_generators, matched_thresholds, unmatched_thresholds, feature_map_sizes):
             if len(fsize) == 0:
                 fsize = feature_map_size
                 self._feature_map_sizes[idx] = feature_map_size

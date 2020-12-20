@@ -102,10 +102,8 @@ class DataBaseSamplerV2:
                    calib=None):
         sampled_num_dict = {}
         sample_num_per_class = []
-        for class_name, max_sample_num in zip(self._sample_classes,
-                                              self._sample_max_nums):
-            sampled_num = int(max_sample_num -
-                              np.sum([n == class_name for n in gt_names]))
+        for class_name, max_sample_num in zip(self._sample_classes, self._sample_max_nums):
+            sampled_num = int(max_sample_num - np.sum([n == class_name for n in gt_names]))
             sampled_num = np.round(self._rate * sampled_num).astype(np.int64)
             sampled_num_dict[class_name] = sampled_num
             sample_num_per_class.append(sampled_num)

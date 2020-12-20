@@ -15,7 +15,59 @@ from second.pytorch.core.losses import (WeightedSigmoidClassificationLoss,
 from second.pytorch.models import middle, pointpillars, rpn, voxel_encoder
 from torchplus import metrics
 from second.pytorch.utils import torch_timer
+import mayavi.mlab as mlab
 
+def draw_lidar(pc, color=None, fig=None, bgcolor=(0, 0, 0), pts_scale=1, pts_mode='point', pts_color=None):
+    if fig is None: fig = mlab.figure(figure=None, bgcolor=bgcolor, fgcolor=None, engine=None, size=(1600, 1000))
+    if color is None: color = pc[:, 2]
+    mlab.points3d(pc[:, 0], pc[:, 1], pc[:, 2], color, color=pts_color, mode=pts_mode, colormap='gnuplot',
+                  scale_factor=pts_scale, figure=fig)
+
+    # draw origin
+    mlab.points3d(0, 0, 0, color=(1, 1, 1), mode='sphere', scale_factor=0.2)
+
+    # draw axis
+    axes = np.array([
+        [2., 0., 0., 0.],
+        [0., 2., 0., 0.],
+        [0., 0., 2., 0.],
+    ], dtype=np.float64)
+    mlab.plot3d([0, axes[0, 0]], [0, axes[0, 1]], [0, axes[0, 2]], color=(1, 0, 0), tube_radius=None, figure=fig)
+    mlab.plot3d([0, axes[1, 0]], [0, axes[1, 1]], [0, axes[1, 2]], color=(0, 1, 0), tube_radius=None, figure=fig)
+    mlab.plot3d([0, axes[2, 0]], [0, axes[2, 1]], [0, axes[2, 2]], color=(0, 0, 1), tube_radius=None, figure=fig)
+
+    # draw fov (todo: update to real sensor spec.)
+    fov = np.array([  # 45 degree
+        [20., 20., 0., 0.],
+        [20., -20., 0., 0.],
+    ], dtype=np.float64)
+
+    mlab.plot3d([0, fov[0, 0]], [0, fov[0, 1]], [0, fov[0, 2]], color=(1, 1, 1), tube_radius=None, line_width=1,
+                figure=fig)
+    mlab.plot3d([0, fov[1, 0]], [0, fov[1, 1]], [0, fov[1, 2]], color=(1, 1, 1), tube_radius=None, line_width=1,
+                figure=fig)
+
+    # draw square region
+    TOP_Y_MIN = -20
+    TOP_Y_MAX = 20
+    TOP_X_MIN = 0
+    TOP_X_MAX = 40
+    TOP_Z_MIN = -2.0
+    TOP_Z_MAX = 0.4
+
+    x1 = TOP_X_MIN
+    x2 = TOP_X_MAX
+    y1 = TOP_Y_MIN
+    y2 = TOP_Y_MAX
+    mlab.plot3d([x1, x1], [y1, y2], [0, 0], color=(0.5, 0.5, 0.5), tube_radius=0.1, line_width=1, figure=fig)
+    mlab.plot3d([x2, x2], [y1, y2], [0, 0], color=(0.5, 0.5, 0.5), tube_radius=0.1, line_width=1, figure=fig)
+    mlab.plot3d([x1, x2], [y1, y1], [0, 0], color=(0.5, 0.5, 0.5), tube_radius=0.1, line_width=1, figure=fig)
+    mlab.plot3d([x1, x2], [y2, y2], [0, 0], color=(0.5, 0.5, 0.5), tube_radius=0.1, line_width=1, figure=fig)
+
+    # mlab.orientation_axes()
+    mlab.view(azimuth=180, elevation=70, focalpoint=[12.0909996, -1.04700089, -2.03249991], distance=62.0, figure=fig)
+    # mlab.show()
+    return fig
 
 def _get_pos_neg_loss(cls_loss, labels):
     # cls_loss: [N, num_anchors, num_class]
@@ -169,8 +221,7 @@ class VoxelNet(nn.Module):
             num_groups=num_groups,
             box_code_size=target_assigner.box_coder.code_size,
             num_direction_bins=self._num_direction_bins)
-        self.rpn_acc = metrics.Accuracy(
-            dim=-1, encode_background_as_zeros=encode_background_as_zeros)
+        self.rpn_acc = metrics.Accuracy(dim=-1, encode_background_as_zeros=encode_background_as_zeros)
         self.rpn_precision = metrics.Precision(dim=-1)
         self.rpn_recall = metrics.Recall(dim=-1)
         self.rpn_metrics = metrics.PrecisionRecall(
@@ -322,17 +373,26 @@ class VoxelNet(nn.Module):
                 dir_cls_preds: ...
             }
         """
+        #######################33
+        # the actual model start from here
         self.start_timer("voxel_feature_extractor")
-        voxel_features = self.voxel_feature_extractor(voxels, num_points,
-                                                      coors)
+        voxel_features = self.voxel_feature_extractor(voxels, num_points, coors)
+        # here in term of point pillar i have converted each 4 dimension of point cloud into 64 dimesnion feature across all point cloud in pillar
+     ########################################################################33
+        # fig = mlab.figure(figure=None, bgcolor=(0, 0, 0), fgcolor=None, engine=None, size=(1000, 500))
+        # pcd_data = voxel_features.detach().cpu().numpy()
+        # draw_lidar(pcd_data, fig=fig)
+        # mlab.show()
+####################################################################################
         self.end_timer("voxel_feature_extractor")
 
         self.start_timer("middle forward")
-        spatial_features = self.middle_feature_extractor(
-            voxel_features, coors, batch_size)
+        spatial_features = self.middle_feature_extractor(voxel_features, coors, batch_size)
         self.end_timer("middle forward")
         self.start_timer("rpn forward")
         preds_dict = self.rpn(spatial_features)
+        #in preds_dicts : box shape is [1,12,50,50,7]: 1 :batch, 12: no of anchor per point, 50*50:channel, 7 is dimension
+        # class shape : [1,12,50,50,10], 1 :batch, 12: no of anchor per point, 50*50:channel, 10 no of class
         self.end_timer("rpn forward")
         return preds_dict
 
@@ -340,6 +400,7 @@ class VoxelNet(nn.Module):
         """module's forward should always accept dict and return loss.
         """
         voxels = example["voxels"]
+
         num_points = example["num_points"]
         coors = example["coordinates"]
         if len(num_points.shape) == 2:  # multi-gpu
@@ -422,13 +483,8 @@ class VoxelNet(nn.Module):
         predictions_dicts = []
         post_center_range = None
         if len(self._post_center_range) > 0:
-            post_center_range = torch.tensor(
-                self._post_center_range,
-                dtype=batch_box_preds.dtype,
-                device=batch_box_preds.device).float()
-        for box_preds, cls_preds, dir_preds, a_mask, meta in zip(
-                batch_box_preds, batch_cls_preds, batch_dir_preds,
-                batch_anchors_mask, meta_list):
+            post_center_range = torch.tensor(self._post_center_range, dtype=batch_box_preds.dtype, device=batch_box_preds.device).float()
+        for box_preds, cls_preds, dir_preds, a_mask, meta in zip(batch_box_preds, batch_cls_preds, batch_dir_preds, batch_anchors_mask, meta_list):
             if a_mask is not None:
                 box_preds = box_preds[a_mask]
                 cls_preds = cls_preds[a_mask]
@@ -453,8 +509,7 @@ class VoxelNet(nn.Module):
                 nms_func = box_torch_ops.rotate_nms
             else:
                 nms_func = box_torch_ops.nms
-            feature_map_size_prod = batch_box_preds.shape[
-                1] // self.target_assigner.num_anchors_per_location
+            feature_map_size_prod = batch_box_preds.shape[1] // self.target_assigner.num_anchors_per_location
             if self._multiclass_nms:
                 assert self._encode_background_as_zeros is True
                 boxes_for_nms = box_preds[:, [0, 1, 3, 4, 6]]
@@ -569,19 +624,10 @@ class VoxelNet(nn.Module):
                         top_labels = top_labels[top_scores_keep]
                     boxes_for_nms = box_preds[:, [0, 1, 3, 4, 6]]
                     if not self._use_rotate_nms:
-                        box_preds_corners = box_torch_ops.center_to_corner_box2d(
-                            boxes_for_nms[:, :2], boxes_for_nms[:, 2:4],
-                            boxes_for_nms[:, 4])
-                        boxes_for_nms = box_torch_ops.corner_to_standup_nd(
-                            box_preds_corners)
+                        box_preds_corners = box_torch_ops.center_to_corner_box2d(boxes_for_nms[:, :2], boxes_for_nms[:, 2:4], boxes_for_nms[:, 4])
+                        boxes_for_nms = box_torch_ops.corner_to_standup_nd(box_preds_corners)
                     # the nms in 3d detection just remove overlap boxes.
-                    selected = nms_func(
-                        boxes_for_nms,
-                        top_scores,
-                        pre_max_size=self._nms_pre_max_sizes[0],
-                        post_max_size=self._nms_post_max_sizes[0],
-                        iou_threshold=self._nms_iou_thresholds[0],
-                    )
+                    selected = nms_func(boxes_for_nms, top_scores, pre_max_size=self._nms_pre_max_sizes[0], post_max_size=self._nms_post_max_sizes[0], iou_threshold=self._nms_iou_thresholds[0],)
                 else:
                     selected = []
                 # if selected is not None:
@@ -598,13 +644,8 @@ class VoxelNet(nn.Module):
                 if self._use_direction_classifier:
                     dir_labels = selected_dir_labels
                     period = (2 * np.pi / self._num_direction_bins)
-                    dir_rot = box_torch_ops.limit_period(
-                        box_preds[..., 6] - self._dir_offset,
-                        self._dir_limit_offset, period)
-                    box_preds[
-                        ...,
-                        6] = dir_rot + self._dir_offset + period * dir_labels.to(
-                            box_preds.dtype)
+                    dir_rot = box_torch_ops.limit_period(box_preds[..., 6] - self._dir_offset, self._dir_limit_offset, period)
+                    box_preds[..., 6] = dir_rot + self._dir_offset + period * dir_labels.to(box_preds.dtype)
                 final_box_preds = box_preds
                 final_scores = scores
                 final_labels = label_preds
@@ -659,6 +700,7 @@ class VoxelNet(nn.Module):
         cls_preds = cls_preds.view(batch_size, -1, num_class)
         rpn_acc = self.rpn_acc(labels, cls_preds, sampled).numpy()[0]
         prec, recall = self.rpn_metrics(labels, cls_preds, sampled)
+        precall = self.rpn_metrics(labels, cls_preds, sampled)
         prec = prec.numpy()
         recall = recall.numpy()
         rpn_cls_loss = self.rpn_cls_loss(cls_loss).numpy()[0]

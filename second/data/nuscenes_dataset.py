@@ -163,21 +163,17 @@ class NuScenesDataset(Dataset):
             },
         }
         lidar_path = Path(info['lidar_path'])
-        points = np.fromfile(
-            str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])
+        points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])
         points[:, 3] /= 255
         points[:, 4] = 0
         sweep_points_list = [points]
         ts = info["timestamp"] / 1e6
 
         for sweep in info["sweeps"]:
-            points_sweep = np.fromfile(
-                str(sweep["lidar_path"]), dtype=np.float32,
-                count=-1).reshape([-1, 5])
+            points_sweep = np.fromfile(str(sweep["lidar_path"]), dtype=np.float32, count=-1).reshape([-1, 5])
             sweep_ts = sweep["timestamp"] / 1e6
             points_sweep[:, 3] /= 255
-            points_sweep[:, :3] = points_sweep[:, :3] @ sweep[
-                "sweep2lidar_rotation"].T
+            points_sweep[:, :3] = points_sweep[:, :3] @ sweep["sweep2lidar_rotation"].T
             points_sweep[:, :3] += sweep["sweep2lidar_translation"]
             points_sweep[:, 4] = ts - sweep_ts
             sweep_points_list.append(points_sweep)
@@ -198,6 +194,7 @@ class NuScenesDataset(Dataset):
         res["lidar"]["points"] = points
         if 'gt_boxes' in info:
             mask = info["num_lidar_pts"] > 0
+           #this is we are doing to collect only those gt boxes for which lidar points are more than one, kind of argumentation
             gt_boxes = info["gt_boxes"][mask]
             if self._with_velocity:
                 gt_velocity = info["gt_velocity"][mask]

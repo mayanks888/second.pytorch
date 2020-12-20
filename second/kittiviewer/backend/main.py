@@ -208,9 +208,17 @@ def inference_by_idx():
     example_torch = example_convert_to_torch(example, device=BACKEND.device)
     pred = BACKEND.net(example_torch)[0]
     box3d = pred["box3d_lidar"].detach().cpu().numpy()
+    ####################################################3333
+    scores_lidar = pred["scores"].detach().cpu().numpy()
+    threshold = 0.3
+    keep = np.where((scores_lidar >= threshold))[0]
+    box3d = box3d[keep]
+    # boxes_lidar = boxes_lidar[keep]
+    ############################################################
     locs = box3d[:, :3]
     dims = box3d[:, 3:6]
     rots = np.concatenate([np.zeros([locs.shape[0], 2], dtype=np.float32), -box3d[:, 6:7]], axis=1)
+
     response["dt_locs"] = locs.tolist()
     response["dt_dims"] = dims.tolist()
     response["dt_rots"] = rots.tolist()
@@ -226,4 +234,5 @@ def main(port=16666):
     app.run(host='127.0.0.1', threaded=True, port=port)
 
 if __name__ == '__main__':
-    fire.Fire()
+    # fire.Fire()
+    main()

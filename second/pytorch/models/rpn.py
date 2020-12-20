@@ -198,7 +198,7 @@ class RPN(nn.Module):
         # print("rpn forward time", time.time() - t)
 
         return ret_dict
-
+#this  was second called from rpn script
 class RPNNoHeadBase(nn.Module):
     def __init__(self,
                  use_norm=True,
@@ -223,6 +223,7 @@ class RPNNoHeadBase(nn.Module):
         super(RPNNoHeadBase, self).__init__()
         self._layer_strides = layer_strides
         self._num_filters = num_filters
+
         self._layer_nums = layer_nums
         self._upsample_strides = upsample_strides
         self._num_upsample_filters = num_upsample_filters
@@ -330,7 +331,7 @@ class RPNNoHeadBase(nn.Module):
         res["out"] = x
         return res
 
-
+#this was called first in rpn
 class RPNBase(RPNNoHeadBase):
     def __init__(self,
                  use_norm=True,
@@ -417,6 +418,10 @@ class RPNBase(RPNNoHeadBase):
                 W).permute(0, 1, 3, 4, 2).contiguous()
             # dir_cls_preds = dir_cls_preds.permute(0, 2, 3, 1).contiguous()
             ret_dict["dir_cls_preds"] = dir_cls_preds
+
+            ##################################3
+            # torch.save(the_model.state_dict(), "myrpn.pth")
+            ######################################
         return ret_dict
 
 

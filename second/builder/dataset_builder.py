@@ -30,6 +30,7 @@ import numpy as np
 from second.builder import dbsampler_builder
 from functools import partial
 from second.utils.config_tool import get_downsample_factor
+from second.pytorch.mayank_play.lidar_point_ops_on_mayavi import draw_lidar_simple,boxes_in_3d
 
 def build(input_reader_config,
           model_config,
@@ -104,6 +105,18 @@ def build(input_reader_config,
         sample_importance=prep_cfg.sample_importance)
 
     ret = target_assigner.generate_anchors(feature_map_size)
+
+    ########################################################333
+    # modified by mayank
+    # i have created this just to check the anchor on point cloud
+
+    # filename ='/home/mayank_sati/Documents/point_clouds/nuscene_v1.0-mini/samples/LIDAR_TOP/n008-2018-08-01-15-16-36-0400__LIDAR_TOP__1533151622448916.pcd.bin'
+    # points = np.fromfile(filename, dtype=np.float32)
+    # points = points.reshape((-1, 5))[:, :4]
+    # fig = draw_lidar_simple(points)
+    # boxes_in_3d(ret['anchors'],fig)
+
+    #############################################################
     class_names = target_assigner.classes
     anchors_dict = target_assigner.generate_anchors_dict(feature_map_size)
     anchors_list = []
@@ -116,8 +129,7 @@ def build(input_reader_config,
     assert np.allclose(anchors, ret["anchors"].reshape(-1, target_assigner.box_ndim))
     matched_thresholds = ret["matched_thresholds"]
     unmatched_thresholds = ret["unmatched_thresholds"]
-    anchors_bv = box_np_ops.rbbox2d_to_near_bbox(
-        anchors[:, [0, 1, 3, 4, 6]])
+    anchors_bv = box_np_ops.rbbox2d_to_near_bbox(anchors[:, [0, 1, 3, 4, 6]])
     anchor_cache = {
         "anchors": anchors,
         "anchors_bv": anchors_bv,
@@ -126,10 +138,6 @@ def build(input_reader_config,
         "anchors_dict": anchors_dict,
     }
     prep_func = partial(prep_func, anchor_cache=anchor_cache)
-    dataset = dataset_cls(
-        info_path=dataset_cfg.kitti_info_path,
-        root_path=dataset_cfg.kitti_root_path,
-        class_names=class_names,
-        prep_func=prep_func)
+    dataset = dataset_cls(info_path=dataset_cfg.kitti_info_path, root_path=dataset_cfg.kitti_root_path, class_names=class_names, prep_func=prep_func)
 
     return dataset
